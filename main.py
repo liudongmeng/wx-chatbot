@@ -43,6 +43,7 @@ replyDict = {'二胖': '胖酱',
 chat_friends = dict()
 # Ta
 chat_friends["最不想看见的你"] = {'chatBot': True}
+chat_friends["移动卡"] = {'chatBot': True}
 friends_remark = list()
 controller = True
 
@@ -165,7 +166,7 @@ def request_from_xiaobing(msg):
         if len(chatReplyList) < 1:
             return
         requestUser = chatReplyList[0].User
-        requestUser.send(msg.Content)
+        requestUser.send('[ChatBot]:%s'%msg.Content)
         print("回答前剩余数量:%s" % len(chatReplyList))
         chatReplyList.remove(chatReplyList[0])
         print("回答后剩余数量:%s" % len(chatReplyList))
