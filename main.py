@@ -26,7 +26,7 @@ def func_print(*argvs, **kwargvs):
 print = func_print
 
 # global requestUser, replyDict
-requestUser = None
+chatReplyList = list()
 replyDict = {'二胖': '胖酱',
              '郑凯': '胖酱',
              '老牛': '🐂酱',
@@ -40,13 +40,16 @@ replyDict = {'二胖': '胖酱',
              '王龙': '龙🐶',
              '赵凯宁': '🐶宁'}
 
-
+chat_friends = dict()
+# Ta
+chat_friends["最不想看见的你"] = {'chatBot': True}
+friends_remark = list()
 controller = True
 
 
 @itchat.msg_register(TEXT)
 def text_reply(msg):
-    global replyDict, requestUser, controller
+    global replyDict, chatReplyList, controller
     if 'SystemInfo' in msg.keys() and msg.SystemInfo == 'uins':
         print('选中用户置顶事件,无消息')
         return
@@ -54,7 +57,9 @@ def text_reply(msg):
 @[%s]\u2005I received: %s''' % (msg.User.NickName,  msg.Text)
     print(message)
     # print(msg)
+    global chat_friends, friends_remark
     friends = itchat.get_friends()
+
     fromUser = list(filter(lambda x: x.UserName ==
                            msg['FromUserName'], friends))[0]
     if fromUser == itchat.search_friends():
@@ -65,14 +70,28 @@ def text_reply(msg):
         elif msg.Text == 'off':
             controller = False
             print(controller)
+        elif msg.Text == 'update':
+            friends = itchat.get_friends(update=True)
+            friends_remark = list(map(lambda x: x.RemarkName, friends))
+        else:  # msg.Text in friends_remark:
+            if msg.Text in chat_friends.keys():
+                chat_friends.pop(msg.Text)
+            else:
+                chat_friends[msg.Text] = {'chatBot': True}
         return
     # or (fromUser == itchat.search_friends()):
-    if(fromUser.NickName != 'Sayonara'):
-        ask_xiaobing(msg.Text, fromUser)
-    if(fromUser.RemarkName in replyDict.keys()) or (fromUser.NickName in replyDict.keys()):
-        requestUser = fromUser
-        ask_xiaobing(msg.Text, fromUser)
-    if (fromUser.RemarkName in ['冬冬1', '移动卡']):
+    # if(fromUser.NickName != 'Sayonara') and fromUser in ():
+    #     chatReplyList.append(msg)
+    #     ask_xiaobing()
+    elif(fromUser.RemarkName in chat_friends.keys()) and chat_friends[fromUser.RemarkName]['chatBot'] == True:
+        chatReplyList.append(msg)
+        print("添加回答,当前数量:[%s]" % len(chatReplyList))
+        ask_xiaobing()
+    elif (fromUser.NickName in chat_friends.keys()) and chat_friends[fromUser.NickName]['chatBot'] == True:
+        chatReplyList.append(msg)
+        print("添加回答,当前数量:[%s]" % len(chatReplyList))
+        ask_xiaobing()
+    elif (fromUser.RemarkName in ['冬冬1', '移动卡']):
         word = cut(msg.Text)
         fromUser.send(word)
     # if fromUser.RemarkName in replyDict.keys():
@@ -120,31 +139,36 @@ def group_reply(msg):
     if msg.isAt:
         # msg.User.send(message)
         text = msg.Content.split('\u2005')[1:]
-        print('text:%s'%text)
-        if len(text)>0:
-            ask_xiaobing(text, msg.User)
+        print('text:%s' % text)
+        if len(text) > 0:
+            ask_xiaobing(msg)
         else:
             msg.User.send('干啥?')
 
 
-def ask_xiaobing(text=None, user=None):
-    global requestUser, controller
+def ask_xiaobing():
+    global chatReplyList, controller
     if controller is False:
         return
-    if user is None:
-        return
-    requestUser = user
+    # chatBotList.append(msg)
     xiaoBing = filter(lambda x: x.NickName == '小冰',
                       itchat.get_mps()).__next__()
-    xiaoBing.send(text)
+    if(len(chatReplyList) > 0):
+        xiaoBing.send(chatReplyList[0].Content)
 
 
 @itchat.msg_register(INCOME_MSG, isMpChat=True)
 def request_from_xiaobing(msg):
-    global requestUser
     # print(msg)
-    if msg.User.NickName == '小冰' and requestUser is not None:
+    if msg.User.NickName == '小冰':
+        global chatReplyList
+        if len(chatReplyList) < 1:
+            return
+        requestUser = chatReplyList[0].User
         requestUser.send(msg.Content)
+        print("回答前剩余数量:%s" % len(chatReplyList))
+        chatReplyList.remove(chatReplyList[0])
+        print("回答后剩余数量:%s" % len(chatReplyList))
         userName = requestUser.RemarkName
         if len(requestUser.RemarkName) == 0:
             userName = requestUser.NickName
@@ -152,7 +176,8 @@ def request_from_xiaobing(msg):
 [@%s]:%s
 ''' % (userName, msg.Content)
         print(message)
-        requestUser = None
+        if(len(chatReplyList) > 0):
+            ask_xiaobing()
 
 
 # @itchat.msg_register(TEXT, isGroupChat=True)
